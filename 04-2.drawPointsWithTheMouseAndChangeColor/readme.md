@@ -450,11 +450,11 @@ function click(event, gl ,canvas, a_Position, u_FragColor) {
 
 `gl.uniform1f(location, v0)`
 
-`gl.uniform1f(location, v0, v1)`
+`gl.uniform2f(location, v0, v1)`
 
-`gl.uniform1f(location, v0, v1, v2)`
+`gl.uniform3f(location, v0, v1, v2)`
 
-`gl.uniform1f(location, v0, v1, v2, v3)`
+`gl.uniform4f(location, v0, v1, v2, v3)`
 
 | 参数             | 描述                   |
 |----------------|----------------------|
