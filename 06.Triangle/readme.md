@@ -315,3 +315,141 @@ gl.vertexAttribPointer()方法解决了这个问题，他可以将整个缓冲�
 **`gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)`完整流程图**
 
 ![效果图](../images/completeProcess.png)
+
+## 绘制三角形
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'void main() {\n' +
+        'gl_Position = a_Position;\n' +
+        'gl_PointSize = 10.0;\n' + // [!code --]
+    '}\n'
+const FSHADER_SOURCE =
+   ' void main() {\n'+
+        'gl_FragColor = vec4(1.0, 1.0, 0.0,1.0);\n'+
+    '}\n'
+
+
+function main() {
+    var canvas = document.getElementById('webgl')
+    var gl = getWebGLContext(canvas)
+    if(!gl) {
+        console.error('Failed to get the rendering context for WebGL')
+        return;
+    }
+
+    // 初始化着色器
+    if(!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+        return;
+    }
+
+    // 设置顶点着色器
+    var n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Failed to set the positions of the vertices')
+        return;
+    }
+
+    // // 获取attribut变量的存储位置
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    //
+    // var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor')
+    if(a_Position < 0) {
+        console.error('Failed to get the storage location of a_Position')
+        return;
+    }
+    //
+    // canvas.onmousedown = function (ev) {click(ev, gl, canvas, a_Position, u_FragColor)}
+
+
+
+    // gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0)
+
+    // 设置canvas背景色
+    gl.clearColor(0.0,0.0,0.0,1.0)
+
+    // 清空canvas
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // 绘制
+    gl.drawArrays(gl.POINTS, 0, n) // [!code ++]
+    gl.drawArrays(gl.TRIANGLES, 0, n) // [!code --]
+
+
+}
+
+function initVertexBuffers(gl) {
+    var vertices = new Float32Array([
+        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+    ])
+    var n = 3 // 点的个数
+
+    // 创建缓冲区对象
+    var vertexBuffer = gl.createBuffer();
+    if(!vertexBuffer) {
+        console.error('Failed to create the buffer object')
+        return -1;
+    }
+
+    // 将缓冲区对象绑定到目标
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+
+    // 向缓冲区对象中写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+
+    // 将缓冲区对象分配给a_Position变量
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
+
+    // 连接a_Position变量与分配给它的缓冲对象
+    gl.enableVertexAttribArray(a_Position)
+    return n
+}
+
+```
+
+![效果图](../images/triangles.png)
+
+
+`gl.drawArrays(gl.TRIANGLES, 0, n)`
+
+gl.drawArrays()方法的第一个参数 mode 改为gl.TRIANGLES, 就相当于告诉WebGL， 从缓冲区中的第1个顶点开始，使顶点着色器执行3次，用这3个顶点绘制出一个三角形
+
+gl.drawArrays() 即强大又灵活，通过给第一个参数指定不同的值，就能以7种不同的方式来绘制图形。
+
+**WebGL可以绘制的基本图形**
+
+| 基本图形  |        参数mode        | 描述                                                                                                                      |                
+|:------|:--------------------:|:------------------------------------------------------------------------------------------------------------------------|
+| 点     |      gl.POINTS       | 一系列点，绘制在v0、v1、v2...处                                                                                                    |
+| 线段    |       gl.LINES       | 一系列单独的线段，绘制在（v0, v1）、（v2， v3）、（v4，v5）...处，<br/> 如果点的个数是奇数，最好一个将被忽略                                                      |
+| 线条    |    gl.LINE_STRIP     | 一系列连接的线段，被绘制在（v0，v1）、（v1、v2）、（v2，v3）...处，<br/>第一个点是第一条线段的起点，第二个点是第一条线段的终点和第二条线段的起点...<br/>一次类推。最后一个点是最后一条线段的终点          |
+| 回路    |     gl.LINE_LOOP     | 一系列连接的线段。与gl.LINE_STRIP绘制的线条相比，增加了一条从最后一个<br/>点到第一个点的线段。                                                                |
+| 三角形   |     gl.TRIANGLES     | 一系列单独的三角形，绘制在（v0，v1，v2）、（v3， v4，v5）...处。如果<br/>点的个数不是3的整数倍，最后剩下的一个或两个点将被忽略                                              |
+| 三角带   |  gl.TRIANGLES_STRIP  | 一系列条带状的三角形，前三个点构成了第一个三角形，从第2个点开始的三个点<br/>‘成了第2个三角形，以此类推。这些三角形被绘制在（v0，v1，v2）、（v2，v1，v3）、<br/>（v2，v3、v4）...处              |
+| 三角扇   |   gl.TRIANGLES_FAN   | 一系列三角形组成的类似与扇形的图形。前三个点构成了第一个三角形，接下来的<br/>一个点和前一个三角形的最后一条边组成接下来的一个三角形。这些三角形被绘制<br/>在（v0，v1，v2）、（v0，v2，v3）、（v0、v3、v4）...处 |
+
+
+![示例图](../images/gl.drawArraysMode.png)
+
+
+修改例中的`gl.drawArrays(gl.LINES, 0, n)`
+
+![效果图](../images/line.png)
+
+修改例中的`gl.drawArrays(gl.LINE_STRIP, 0, n)`
+
+![效果图](../images/line_strip.png)
+
+修改例中的`gl.drawArrays(gl.LINE_LOOP, 0, n)`
+
+![效果图](../images/line_loop.png)
+
+
+
+
+
