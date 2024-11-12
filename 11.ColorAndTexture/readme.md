@@ -244,6 +244,132 @@ function initVertexBuffers(gl) {
 
 ### 修改颜色 (varying 变量)
 
+片元着色器可以用来处理颜色之类的属性。 但是到目前为止，我们都只是在片元着色器中静态地设置颜色，还没有真正研究过片元着色器。虽然现在已经能够将顶点的颜色数据从 javascript 中传递给顶点着色器中的attribute变量，
+但是真正能够影响绘制颜色的gl_FragColor 却在片元着色器中。我们需要知道顶点着色器和片元着色器是如何交流的=，这样才能使传入顶点着色器的数据进入片元着色器。
+
+![原理图](../images/vshaderAndFshader.png)
+
+使用`uniform`变量,没法为每个顶点都准备一个值。 使用`varying`变量向片元着色器中传入数据，**varying变量的作用是从顶点着色器向片元着色器传输数据**
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' + // [!code ++]
+    'varying vec4 v_Color;\n' + // [!code ++]
+    'void main() {\n' +
+    'gl_Position = a_Position;\n' +
+    'gl_PointSize = 10.0;\n' +
+    'v_Color = a_Color;\n' +  // 将数据传给片元着色器 // [!code ++]
+    '}\n';
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' + // [!code ++]
+    'precision mediump float;\n' + //精度限定，中精度 // [!code ++]
+    '#endif\n' + // [!code ++]
+    'varying vec4 v_Color;\n' + // [!code ++]
+    ' void main() {\n' +
+    'gl_FragColor = v_Color;\n' + // 从顶点着色器接收数据 // [!code ++]
+    'gl_FragColor = vec4(1.0, 1.0, 0.0,1.0);\n' + // [!code --]
+    '}\n'
+
+function main() {
+    var canvas = document.getElementById('webgl')
+    var gl = getWebGLContext(canvas)
+    if (!gl) {
+        console.error('Failed to get the rendering context for WebGL')
+        return;
+    }
+
+    // 初始化着色器
+    if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+        return;
+    }
+
+    // 设置顶点着色器
+    var n = initVertexBuffers(gl);
+
+    if (n < 0) {
+        console.error('Failed to set the positions of the vertices')
+        return;
+    }
+
+    // 获取attribut变量的存储位置
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+
+
+    if (a_Position < 0) {
+        console.error('Failed to get the storage location of a_Position')
+        return;
+    }
+
+    // 设置canvas背景色
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    // 清空canvas
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // 绘制三个点
+    gl.drawArrays(gl.POINTS, 0, n)
+
+}
+
+
+function initVertexBuffers(gl) {
+    var verticesSizes = new Float32Array([ // [!code --]
+        0.0, 0.5,10.0, -0.5,-0.5,20.0, 0.5,-0.5,30.0 // [!code --]
+    ]) // [!code --]
+
+    var verticesColors = new Float32Array([  // [!code ++]
+        // 顶点坐标和颜色 // [!code ++]
+        0.0, 0.5, 1.0, 0.0, 0.0, // [!code ++]
+        -0.5, -0.5, 0.0, 1.0, 0.0, // [!code ++]
+        0.5, -0.5, 0.0, 0.0, 1.0 // [!code ++]
+    ]) // [!code ++]
+
+    var n =3 // 点的个数
+
+    // 创建缓冲区对象
+    var vertexSizeBuffer = gl.createBuffer(); // [!code --]
+
+    var vertexColorBuffer = gl.createBuffer(); // [!code ++]
+    if (!vertexColorBuffer) {
+        console.error('Failed to create the buffer object')
+        return -1;
+    }
+
+    // 将缓冲区对象绑定到目标
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+
+    // 向缓冲区对象中写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    var FSIZE = verticesColors.BYTES_PER_ELEMENT  //数组中每个元素所占的字节数
+
+    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+
+
+    // 将缓冲区对象分配给a_Position变量
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 5, 0)
+
+    // 连接a_Position变量与分配给它的缓冲对象
+    gl.enableVertexAttribArray(a_Position) // 开启分配
+
+
+    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2)
+
+    gl.enableVertexAttribArray(a_Color)
 
 
 
+    return n
+}
+
+```
+
+**下面者三句 必须要 至于为什么要这个精度限定，还没找到答案， 但是没有这三局，初始化着色器会失败（这个问题找了半天）**
+```js
+'#ifdef GL_ES\n' +
+'precision mediump float;\n' + //精度限定，中精度
+'#endif\n' 
+```
