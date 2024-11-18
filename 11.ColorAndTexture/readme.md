@@ -412,10 +412,195 @@ function initVertexBuffers(gl) {
 
 
 
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'void main() {\n' +
+    'gl_PointSize = 10.0;\n' +
+    'gl_Position = a_Position;\n' +
+    '}\n'
+const FSHADER_SOURCE =
+    'void main() {\n' +
+    'gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.getElementById('webgl')
+
+    const gl = getWebGLContext(canvas)
+
+    if(!gl) {
+        console.error('Failed to get the rendering context for WebGL')
+        return;
+    }
+
+    if(!initShaders(gl,VSHADER_SOURCE, FSHADER_SOURCE )) {
+        console.error('Failed to  initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl)
+    console.log(n)
+    if(n < 0) {
+        console.error('Failed to set the positions of the vertices')
+    }
 
 
 
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+function initVertexBuffers(gl) {
+    const vertices = new Float32Array([
+        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+    ])
+    let n = 3
+
+    const vertexBuffer = gl.createBuffer()
+
+    if(!vertexBuffer) {
+        console.error('Failed to create the buffer object')
+        return -1;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
+
+    gl.enableVertexAttribArray(a_Position)
+
+    return n
+}
+
+```
+
+![效果图](../images/helloTriangle.png)
+
+
+为了证明片元着色器是逐片执行的，将代码修改
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'void main() {\n' +
+    'gl_PointSize = 10.0;\n' +
+    'gl_Position = a_Position;\n' +
+    '}\n'
+const FSHADER_SOURCE =
+    'void main() {\n' + // ![code --]
+    'gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' + // ![code --]
+    '}\n' // ![code --]
+    'precision mediump float;\n'+ // [!code ++]
+    'uniform float u_Width;\n'+ // [!code ++]
+    'uniform float u_Height;\n' + // [!code ++]
+    'void main(){' + // [!code ++]
+    'gl_FragColor = vec4(gl_FragCoord.x/u_Width, 0.0, gl_FragCoord.y/u_Height, 1.0);\n' + // [!code ++]
+    '}' // [!code ++]
+
+
+function main() {
+    const canvas = document.getElementById('webgl')
+
+    const gl = getWebGLContext(canvas)
+
+    if(!gl) {
+        console.error('Failed to get the rendering context for WebGL')
+        return;
+    }
+
+    if(!initShaders(gl,VSHADER_SOURCE, FSHADER_SOURCE )) {
+        console.error('Failed to  initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl)
+    console.log(n)
+    if(n < 0) {
+        console.error('Failed to set the positions of the vertices')
+    }
 
 
 
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
 
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+function initVertexBuffers(gl) {
+    const vertices = new Float32Array([
+        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+    ])
+    let n = 3
+
+    const vertexBuffer = gl.createBuffer()
+
+    if(!vertexBuffer) {
+        console.error('Failed to create the buffer object')
+        return -1;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
+
+    gl.enableVertexAttribArray(a_Position)
+
+    const u_Width = gl.getUniformLocation(gl.program, 'u_Width') // [!code ++]
+    const u_Height = gl.getUniformLocation(gl.program, 'u_Height') // [!code ++]
+
+    // 赋值
+    gl.uniform1f(u_Width, gl.drawingBufferWidth) // [!code ++]
+    // WebGL中的颜色分量值区间为0.0到1.0， 且canvas中的Y轴方向和WebGL系统中的Y轴方向是相反的
+    gl.uniform1f(u_Height, gl.drawingBufferHeight/400) // [!code ++]
+    return n
+}
+```
+
+![效果图](../images/helloTriangleFragColor.png)
+
+
+### varying 变量的作用和内插过程
+
+了解了顶点着色器与片元着色器之间的几何图形装配和光栅化过程，明白了系统是怎么样逐片执行片元着色器的了
+
+在顶点着色器中只指定了每个顶点的颜色，最后得到一个具有渐变色彩的效果的三角形，事实上，我们把顶点的颜色赋值给了顶点着色器中的varying变量v_color，
+它的值被传给了片元着色器中的同名、同类型的变量（即片元着色器中的varying变量v_Color),但是更准确的说，顶点着色器中的v_Color变量和顶点着色器中的
+v_Color变量实际上不是一回事，这也正是我们将这种变量称为 “varying”（变化的）变量的原因
+
+![原理图](../images/varying.png)
+
+
+## 在矩形表面贴上图像
+
+
+**纹理映射**，将一张真实世界的图片贴到一个由两个三角形组成的矩形上，这样矩形表面看上去就是这张图片。此时，这张图片可以称为**纹理图像**或**纹理**
+
+**纹理映射的作用**，就是根据纹理图像，为之前光栅化后的每个片元涂上合适的颜色。组成纹理图像的像素又被称为**纹素**，每个纹素的颜色都使用RGB或RGBA格式编码
+
+
+在WebGL中，要进行纹理映射，需要遵循以下四步：
+
+1. 准备好映射到几何图形上的纹理图像
+2. 为几何图形配置纹理映射方式
+3. 加载纹理图像，对其进行一些配置，在WebGL中使用它
+4. 在片元着色器中将相应的纹素从纹理中抽区出来，并将纹素的颜色赋给片元
+
+使用**纹理坐标**来确定纹理图像的哪个部分将覆盖到几何图形上。纹理坐标是一套新的坐标系统。
+
+### 纹理坐标
+
+通过纹理坐标可以在纹理图像上获取纹素颜色。WebGL系统中的纹理坐标系统是二维的。为了将纹理坐标和广泛使用的x坐标和y坐标区分开来，WebGL使用s和t命名纹理坐标（st坐标系统）
+
+纹理坐标

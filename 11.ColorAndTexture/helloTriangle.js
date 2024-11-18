@@ -1,12 +1,19 @@
 const VSHADER_SOURCE =
     'attribute vec4 a_Position;\n' +
     'void main() {\n' +
-    'gl_Position = a_Position\n' +
+    'gl_PointSize = 10.0;\n' +
+    'gl_Position = a_Position;\n' +
     '}\n'
 const FSHADER_SOURCE =
-    'void main() {\n' +
-    'gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
-    '}\n'
+    // 'void main() {\n' +
+    // 'gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+    // '}\n'
+    'precision mediump float;\n'+
+    'uniform float u_Width;\n'+
+    'uniform float u_Height;\n' +
+    'void main(){' +
+    'gl_FragColor = vec4(gl_FragCoord.x/u_Width, 0.0, gl_FragCoord.y/u_Height, 1.0);\n' +
+    '}'
 
 
 function main() {
@@ -60,6 +67,13 @@ function initVertexBuffers(gl) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
 
     gl.enableVertexAttribArray(a_Position)
+
+    const u_Width = gl.getUniformLocation(gl.program, 'u_Width')
+    const u_Height = gl.getUniformLocation(gl.program, 'u_Height')
+
+    // 赋值
+    gl.uniform1f(u_Width, gl.drawingBufferWidth)
+    gl.uniform1f(u_Height, gl.drawingBufferHeight/400)
 
     return n
 }

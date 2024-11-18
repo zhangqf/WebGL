@@ -108,8 +108,7 @@ function initVertexBuffers(gl) {
     // var a_PointSize = gl.getAttribLocation(gl.program, 'a_PointSize');
 
     var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
-    console.log(a_Color)
-    console.log(32)
+
     gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2)
 
     // gl.vertexAttribPointer(a_PointSize, 1, gl.FLOAT, false, FSIZE * 3,  FSIZE * 2)
