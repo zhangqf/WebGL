@@ -5,6 +5,7 @@ const VSHADER_SOURCE =
     'void main() {\n' +
     'v_TexCoord = a_TexCoord;\n' +
     'gl_Position = a_Position;\n' +
+    // 'gl.PositSize = 30.0;\n' +
     '}\n';
 const FSHADER_SOURCE =
     'precision mediump float;\n'+
@@ -16,6 +17,7 @@ const FSHADER_SOURCE =
     'gl_FragColor = texture2D(u_Sampler, v_TexCoord);\n' +
     '}';
 
+// import textture from '../images/textture.jpeg'/
 
 function main() {
     const canvas = document.getElementById('webgl')
@@ -40,9 +42,7 @@ function main() {
         console.error('Failed to initialize Texture')
     }
 
-    gl.clearColor(0.0, 0.0, 0.0, 1.0)
 
-    gl.clear(gl.COLOR_BUFFER_BIT)
 
 }
 
@@ -101,7 +101,8 @@ function initTextures(gl, n) {
     image.onerror = function() {
         console.error('Failed to load image at ' + image.src);
     };
-    image.src = '../images/textture.jpeg';
+    image.src = 'https://webglfundamentals.org/webgl/resources/f-texture.png';
+    image.setAttribute("crossOrigin", "Anonymous");
     console.log(image)
     return true;
 }
@@ -116,13 +117,15 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
     // 配置纹理参数
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
 
     gl.uniform1i(u_Sampler, 0)
 
 
 
     // gl.drawArrays(gl.TRIANGLES, 0, n)
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
 
+    gl.clear(gl.COLOR_BUFFER_BIT)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, n)
 }
