@@ -102,8 +102,8 @@ function initTextures(gl, n) {
         console.error('Failed to load image at ' + image.src);
     };
     image.src = 'https://webglfundamentals.org/webgl/resources/f-texture.png';
+    // image.src='http://127.0.0.1:5501/images/vshaderAndFshader.png'
     image.setAttribute("crossOrigin", "Anonymous");
-    console.log(image)
     return true;
 }
 
@@ -121,6 +121,7 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
 
     gl.uniform1i(u_Sampler, 0)
 
+    console.log('Texture loaded:', image.width, image.height);
 
 
     // gl.drawArrays(gl.TRIANGLES, 0, n)

@@ -815,11 +815,75 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
 
 该函数的主要任务是配置纹理提供的WebGL使用。使用纹理对象的方式与使用缓冲区很类似
 
-1. 图像Y轴反转
+1. **图像Y轴反转**
 
-在使用图像之前，必须对它进行Y轴反转
-`gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)`
+    在使用图像之前，必须对它进行Y轴反转
+    `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)`
+    
+    WebGL纹理坐标系统中的t轴的方向和PNG、BNP、JPG等格式图片的坐标系统的Y轴方向是相反的。因此，只有先将图像Y轴进行反转，才能够正确地将图像映射到图形上。
+    
+    `gl.pixelStorei(pname, param)`
+    
+    | 参数                                | 描述                           |
+    |-----------------------------------|------------------------------|
+    | pname                             | 可以是以下二者之一                    |
+    | gl.UNPACK_FLIP_Y_WEBGL            | 对图像进行Y轴反转。默认值为false          |
+    | gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL | 将图像RGB颜色值的每一个分量乘以A。默认值为false |
+    | param                             | 指定非0（true）或0（false）。必须为整数    |
+    
+    | 返回值 | 描述 |
+    |-----|----|
+    | 无   |    |
+    
+    | 错误           | 描述          |
+    |--------------|-------------|
+    | INVALID_ENUM | pname不是合法的值 |
+2. **激活纹理单位（gl.activeTexture()）**
 
-WebGL纹理坐标系统中的t轴的方向和PNG、BNP、JPG等格式图片的坐标系统的Y轴方向是相反的。因此，只有先将图像Y轴进行反转，才能够正确地将图像映射到图形上。
+    WebGL通过一种称作**纹理单位（texture unit）** 的机制来同时使用多个纹理。每个纹理单元有一个单元编号来管理一张纹理图像。
+    系统支持的纹理单元个数取决与硬件和浏览器的WebGL实现，但是默认情况下，WebGL至少支持8个纹理单元，一些其他的系统支持的个数更多。内置的变量gl.TEXTRUE0、gl.TEXTURE1...gl.TEXTRUE7个表示一个纹理单元。
+    ![原理图](../images/texture.png)
+    
+    在使用纹理单元之前，还需要调用`gl.activeTexture()`来激活它
+    `gl.activeTexture(texUnit)` 开启0号纹理单元
+    
+    | 参数      | 描述                                                               |
+    |---------|------------------------------------------------------------------|
+    | texUnit | 指定准备激活的纹理单元：gl.TEXTURE0、gl.TEXTURE1...gl.TEXTURE7。最后的数字表示纹理单元的编号 |
 
+    | 返回值 | 描述 |
+    |-----|----|
+    | 无   |    |
+
+    | 错误           | 描述           |
+    |--------------|--------------|
+    | INVALID_ENUM | texUnit的值不合法 |
+
+    ![原理图](../images/activeTexture.png)
+3. **绑定纹理对象（gl.bindTexture()）**
+
+    接下来，还需要告诉WebGL系统纹理对象使用的是哪种类型的纹理。在对纹理对象进行操作之前，我们需要绑定纹理对象，这一点与缓冲区很像：在对缓冲区对象进行操作之前，也需要绑定缓冲区对象。WebGL支持两种类型的纹理
+    
+    | 纹理类型                | 描述    |
+    |---------------------|-------|
+    | gl.TEXTURE_2D       | 二维纹理  |
+    | gl.TEXTURE_CUBE_MAP | 立方体纹理 |
+
+    `gl.bindTexture(target, texture)`
+    
+    | 参数      | 描述                                  |
+    |---------|-------------------------------------|
+    | target  | gl.TEXTURE_2D 或 gl.TEXTURE_CUBE_MAP |
+    | texture | 表示绑定的纹理单元                           |
+    
+    | 返回值 | 描述 |
+    |-----|----|
+    | 无   |    |
+
+    | 错误           | 描述           |
+    |--------------|--------------|
+    | INVALID_ENUM | target不是合法的值 |
+
+    此方法完成了两个任务：开启纹理对象，以及纹理对象绑定到纹理单元上。
+    ![原理图](../images/bindTexture.png)
 
