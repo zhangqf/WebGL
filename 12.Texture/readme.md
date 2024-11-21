@@ -838,6 +838,7 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
     | 错误           | 描述          |
     |--------------|-------------|
     | INVALID_ENUM | pname不是合法的值 |
+
 2. **激活纹理单位（gl.activeTexture()）**
 
     WebGL通过一种称作**纹理单位（texture unit）** 的机制来同时使用多个纹理。每个纹理单元有一个单元编号来管理一张纹理图像。
@@ -860,6 +861,7 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
     | INVALID_ENUM | texUnit的值不合法 |
 
     ![原理图](../images/activeTexture.png)
+
 3. **绑定纹理对象（gl.bindTexture()）**
 
     接下来，还需要告诉WebGL系统纹理对象使用的是哪种类型的纹理。在对纹理对象进行操作之前，我们需要绑定纹理对象，这一点与缓冲区很像：在对缓冲区对象进行操作之前，也需要绑定缓冲区对象。WebGL支持两种类型的纹理
@@ -886,4 +888,167 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
 
     此方法完成了两个任务：开启纹理对象，以及纹理对象绑定到纹理单元上。
     ![原理图](../images/bindTexture.png)
+
+4. **配置纹理对象的参数（gl.texParameteri()）**
+
+    如何根据纹理坐标获取纹素颜色、按哪种方式重复填充纹理。
+
+    `gl.texParameteri(target, pname, param)`
+
+   | 参数      | 描述                                |
+   |---------|-----------------------------------|
+   | target  | gl.TEXTURE_2D或gl.TEXTURE_CUBE_MAP |
+   | pname   | 纹理参数                              |
+   | param   | 纹理参数值                             |
+
+    | 返回值 | 描述 |
+    |-----|----|
+    | 无   |    |
+
+    | 错误                | 描述            |
+    |-------------------|---------------|
+    | INVALID_ENUM      | target不是合法的值  |
+    | INVALID_OPERATION | 当前目标上没有绑定纹理对象 |
+
+    **pname 纹理参数**
+    
+    - 放大方法(gl.TEXTURE_MAG_FILTER): 当纹理的绘制范围比纹理本身更大时，如何获取纹素颜色。如，将16x16的纹理图像映射到32x32像素的空间里时，纹理尺寸就边成了原始的两倍。WebGL需要填充由于放大而造成的像素间的空隙，该参数就是表示填充这些空隙的具体方法
+    - 缩小方法(gl.TEXTURE_MIN_FILTER): 当纹理的绘制范围比纹理本身更小时，如何获取纹素颜色。如，将32x32的纹理图像映射到16x16像素的空间里，纹理的尺寸就只有原始的一半。为了将纹理缩小，WebGL需要剔除纹理图像中的部分像素，该参数就表示具体的剔除像素的方法
+    - 水平填充方法(gl.TEXTURE_WRAP_S): 如何对纹理图像左侧或右侧的区域进行填充
+    - 垂直填充方法(gl.TEXTURE_WARP_T): 如何对纹理图像上方和下方的区域进行填充
+    
+    **纹理参数及它们的默认值**
+    
+   | 纹理参数                  | 描述     | 默认值                      |
+   |-----------------------|--------|--------------------------|
+   | gl.TEXTURE_MAG_FILTER | 纹理方大   | gl.LINEAR                |
+   | gl.TEXTURE_MIN_FILTER | 纹理缩小   | gl.NEAREST_MIPMAP_LINEAR |
+   | gl.TEXTURE_WRAP_S     | 纹理水平填充 | gl.REPEAT                |
+   | gl.TEXTURE_WRAP_T     | 纹理垂直填充 | gl.REPEAT                |
+    
+    **可以赋值给`gl.TEXTURE_MAG_FILTER` 和 `gl.TEXTURE_MIN_FILTER` 的非金字塔纹理类型常量**
+    
+    | 值          | 描述                                                                  |
+    |------------|---------------------------------------------------------------------|
+    | gl.NEAREST | 使用原纹理上距离映射后像素（新像素）中心最近的那个像素的颜色值，作为新像素的值（使用曼哈顿距离）                    |
+    | gl.LINEAR  | 使用距离新像素中心最近的四个像素的颜色值的加权平均，作为新像素的值（与gl.NEAREST相比，该方法的图像质量更好，当会有较大的开销 |
+
+    **可以赋值给`gl.TEXTURE_WRAP_S` 和 `gl.TEXTURE_WRAP_T`的常量**
+    
+    | 值                  | 描述         |
+    |--------------------|------------|
+    | gl.REPEAT          | 平铺式的重复纹理   |
+    | gl.MIRRORED_REPEAT | 镜像对称式的重复纹理 |
+    | gl.CLAMP_TO_EDGE   | 使用纹理图像边缘值  |
+    
+    ![原理图](../images/texParameteri.png)
+
+5. 将纹理图像分配给纹理对象（gl.texImage2D()）
+
+    `gl.texImage(target, level, internalformat, format, type, image)`
+    
+    | 参数             | 描述                                |
+    |----------------|-----------------------------------|
+    | target         | gl.TEXTURE_2D或gl.TEXTURE_CUBE_MAP |
+    | level          | 传入0（实际上，该参数是为金字塔纹理准备的）            |
+    | internalformat | 图像的内部格式                           |
+    | format         | 纹理数据的格式，必须使用与internalformat相同的值   |
+    | type           | 纹理数据类型                            |
+    | image          | 包含纹理图像的Image对象                    |
+
+    | 返回值 | 描述 |
+    |-----|----|
+    | 无   |    |
+
+    | 错误                | 描述             |
+    |-------------------|----------------|
+    | INVALID_ENUM      | target不是合法的值   |
+    | INVALID_OPERATION | 当前目标上没有绑定的纹理对象 |
+
+    ![原理图](../images/texImage.png)
+
+    **图像内部格式**
+
+    | 格式                 | 描述                   |
+    |--------------------|----------------------|
+    | gl.RGB             | 红、绿、蓝                |
+    | gl.RGBA            | 红、绿、蓝、透明度            | 
+    | gl.ALPHA           | (0.0, 0.0, 0.0, 透明度) |
+    | gl.LUMINANCE       | L、 L、 L、 1L: 流明      |
+    | gl.LUMINANCE_ALPHA | L、 L、 L、 透明度         |
+
+    **流明**表示我们感知的物体表面的亮度。通常使用物体表面红、绿、蓝颜色分量值的加权平均来计算流明
+
+    type参数指定了纹理数据类型。通常我们使用`gl.UNSIGNED_BYTE`数据类型。当然也可以使用其他数据类型。
+
+    | 格式                        | 描述                            |
+    |---------------------------|-------------------------------|
+    | gl.UNSIGNED_BYTE          | 无符号整型，每个颜色分量占据1字节             |
+    | gl.UNSIGNED_SHORT_5_6_5   | RGB: 每个分量分别占据5、6、5比特          |
+    | gl.UNSIGNED_SHORT_4_4_4_4 | RGBA: 每个分量分别占据4，4，4，4比特       |
+    | gl.UNSIGNED_SHORT_5_5_5_1 | RGBA: RGB每个分量各占据5个比特，A分量占据1比特 |
+
+6. **将纹理单元传递给片元着色器（gl.uniform1i()）**
+    一旦将纹理图像传入了WebGL系统，就必须将其传入片元着色器并映射到图形的表面上去。
+    ```js
+    const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec2 a_TexCoord;\n' +
+    'varying vec2 v_TexCoord;\n' +
+    'void main() {\n' +
+    'v_TexCoord = a_TexCoord;\n' +
+    'gl_Position = a_Position;\n' +
+    '}\n';
+    
+    ```
+   使用uniform变量来表示纹理，因为纹理图像不会随着片元变化
+
+    **专用于纹理的数据类型**
+    
+    | 类型          | 描述                             |
+    |-------------|--------------------------------|
+    | sampler2D   | 绑定到gl.TEXTURE_2D上的纹理数据类型       |
+    | samplerCube | 绑定到gl.TEXTURE_CUBE_MAP上的纹理数据类型 |
+
+    `gl.uniform1i(u_Sampler, 0)` 将0号纹理传递给着色器中的取样变量
+
+    ![原理图](../images/unifrom1i.png)
+
+7. **从顶点着色器向片元着色器传输纹理坐标**
+
+    通过attribute变量`a_TexCoord`接收顶点的纹理坐标，所以将数据赋值给`varying`变量`v_TexCoord`并将纹理坐标传入片元着色器是可行的。
+    片元着色器和顶点着色器内的同名、同类型的`varying`变量可用来在两者之间传输数据。顶点之间片元的纹理坐标会在光栅化的过程中内插出来，所以在片元着色器中，使用的是内插后的纹理坐标
+ **在片元着色器中获取纹理像素颜色（texture2D()）**
+    
+    ```js
+    const FSHADER_SOURCE =
+    'precision mediump float;\n'+
+    'uniform sampler2D u_Sampler;\n' +
+    'varying vec2 v_TexCoord;\n' +
+    'void main(){' +
+    'gl_FragColor = texture2D(u_Sampler, v_TexCoord);\n' +
+    '}';
+    ```
+   `vec4 texture2D(sampler2d smapler, vec2 coord)`
+    
+    | 参数      | 描述       |
+    |---------|----------|
+    | sampler | 指定纹理单元编号 |
+    | coord   | 指定纹理坐标   |
+
+    | 返回值                                                    | 描述 |
+    |--------------------------------------------------------|----|
+    | 纹理坐标处像素的颜色值，其格式由 `gl.texImage2D()`的internalformat参数决定。 |    |
+
+    **texture2D()的返回值**
+    
+    | internalformat     | 返回值                |
+    |--------------------|--------------------|
+    | gl.RGB             | (R,G,B,1.0)        |
+    | gl.RGBA            | (R,G,B,A)          |
+    | gl.ALPHA           | (0.0, 0.0, 0.0 ,A) |
+    | gl.LUMINANCE       | (L, L, L, 1.0)     |
+    | gl.LUMINANCE_ALPHA | (L, L, L ,A)       |
+
+
 
