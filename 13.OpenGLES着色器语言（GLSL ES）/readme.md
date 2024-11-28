@@ -287,3 +287,135 @@ luma2(color, brightness);
 | 矩阵函数   | matrixCmpMult（逐元素乘法）                                                                                                                                                                  |
 | 矢量函数   | lessThan（逐元素小于），lessThanEqual（逐元素小于等于），greaterThan（逐元素大于），greaterThanEqual（逐元素大于等于）<br/>，equal（逐元素相等），notEqual（逐元素不等），any（任一元素为true则为true），all（所有元素为true则为true），not（逐元素取补）            | 
 | 纹理查询函数 | texture2D（在二维纹理中获取纹素），textureCube（在立方体纹理中获取纹素），texture2DProj（texture2D的投影版本），<br/>texture2DLod（texture2D的金字塔版本），textureCubeLod（textureCube的金字塔版本），texture2DProjLod（texture2DLod的投影版本） |
+
+### 全局变量和局部变量
+
+GLSL ES 中，如果变量声明在函数外面，那么它就是全局变量，如果声明在函数内部，那就是局部变量。
+
+### 存储限定字
+
+在GLSL ES中，经常使用 `attribute`、 `varying`和`uniform`限定字来修饰变量。
+
+- attribute：只能出现在顶点着色器中，只能声明为全局变量，被用来表示逐顶点的信息。 
+
+  attribute变量的类型只能是float、vec2、vec3、vec4、mat2、mat3、mat4。
+
+  顶点着色器中能够容纳的attribute变量的最大数目与设备有关，可以通过访问内置的全局常量来获取该值的最大数目。
+
+  | 变量类别             | 内置全局变量（表示最大数量）                                 | 最小值 |
+  |------------------|------------------------------------------------|-----|
+  | attribute变量      | const mediump int gl_MaxVertexAttribs          | 8   |
+  | uniform变量（顶点着色器） | const mediump init gl_MaxVertexUniformVectors  | 128 |
+  | uniform变量（片元着色器） | const mediump int gl_MaxFragmentUniformVEctors | 16  |
+  | varying变量        | const mediump int gl_MaxVaryingVectors         | 8   |
+
+- uniform变量
+  uniform变量可以用在顶点着色器和片元着色器中，且必须是全局变量。uniform变量是只读的，它可以是除了数组或结构体之外的任意类型。
+
+  如果顶点着色器和片元着色器中声明了同名的uniform变量，那么它就会被两种着色器共享。
+
+- varying变量
+  varying变量必须是全局变量，它的任务是从顶点着色器向片元着色器传输数据。必须在两种着色器中声明同名、同类型的varying变量。
+
+  顶点着色器中赋给varying变量的值并不是直接传给片元着色器的varying变量，这其中发生了光栅化的过程：根据绘制的图形，对前者（顶点着色器varying变量）进行内插，然后再传递给后者（片元着色器varying变量）。
+
+### 精度限定字
+
+GLSL ES新引入了精度限定字，目的是帮助着色器程序提供运行效率，消减内存开支。精度限定字用来表示每种数据具有的精度（比特数）。高精度的程序需要更大的开销（包括更大的内存和更久的计算时间），而低精度的程序需要的开销则小得多。使用精度限定字，
+就能精细地控制程序在效果和性能间的平衡。然而精度限定字是可选的，如果不确定，可以使用这个适中的默认值：
+```glsl
+#ifdef GL_ES
+precision mediump float;
+#endif
+```
+
+| 精度限定字   | 描述                         | 默认数值范围              | 精度           |
+|---------|----------------------------|---------------------|--------------|
+|         |                            | Float               | int          |
+| highp   | 高精度，顶点着色器的最低精度             | (-2^62，2^62)精度2^-16 | (-2^16,2^16) |
+| mediump | 中精度，介于高精度与低精度之间，片元着色器的最低精度 | (-2^14，2^14)精度2^-10 | (-2^10,2^10) |
+| highp   | 低精度，低于中精度，可以表示所有颜色         | (-2，2)精度2^-8        | (-2^8,2^8)   |
+
+**数据类型的默认精度**
+
+| 着色器类型 | 数据类型        | 默认精度    |
+|-------|-------------|---------|
+| 顶点着色器 | int         | highp   |
+|       | float       | highp   |
+|       | sampler2D   | lowp    |
+|       | samplerCube | lowp    |
+| 片元着色器 | int         | mediump |
+|       | float       | 无       |
+|       | sampler2D   | lowp    |
+|       | samplerCube | lowp    |
+
+片元着色器中的float类型没有默认精度，我们需要手动指定。如果我们不在片元着色器中限定float类型的精度，就会导致错误。
+
+### 预处理指令
+
+预处理指令用来在真正编译之前对代码进行预处理，都以（#）开始。
+
+```glsl
+#ifdef GL_ES
+precision mediump float;
+#endif
+```
+
+这段代码检查了是否已经定义了GL_ES宏，如果是，那就执行#ifdef和#endif之间的部分。这个预处理指令的格式和C语言或者JavaScript中的if类似。
+
+```glsl
+#if 条件表达式
+IF 如果条件表达式为真，执行这里
+#endif
+
+#ifdef 某宏
+如果定义了某宏，执行这里
+#endif
+
+#ifndef 某宏
+如果没有定义某宏，执行这里
+#endif
+```
+
+可以使用`#define`指令进行宏定义。 和C语言中的宏不同，GLSL ES中的宏没有宏参数：
+```glsl
+#define 宏名 宏内容
+```
+
+可以使用`#undef`指令解除宏定义
+```glsl
+#undef 宏名
+```
+可以使用`#else`指令配合`#ifdef`
+```glsl
+#define NUM 100
+#if NUN == 100
+如果宏NUM为100，执行这里
+#else
+否则，执行这里
+#endif
+```
+
+例
+```glsl
+#ifdef GL_ES
+#ifdef GL_FRAGMENT_PERCISION_HIGH
+precision highp float; // 支持高精度，限定浮点型为高精度
+#else
+precision mediump float; // 不支持高精度，限定浮点型为中精度
+#endif
+#endif
+```
+
+可以使用`#version` 来指定着色器使用的GLSL ES版本
+
+```glsl
+#version number
+```
+可以接受的版本包括100（GLSL ES 1.00）和101（GLSL ES 1.01）。如果不使用`#version`指令，着色器将默认GLSL ES的版本为1.00。指定1.01版本如下：
+
+```glsl
+#version 101
+```
+
+`#version`指令必须在着色器顶部，在它之前只能有注释和空白。
