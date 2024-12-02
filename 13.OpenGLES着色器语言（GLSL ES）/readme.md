@@ -7,7 +7,6 @@
 - 精度限定词
 - 预处理和指令
 
-
 ## 数据值类型（数值和布尔值）
 
 - 数值类型：GLSL ES 支持整型数 和 浮点数。没有小数点的值被认为是整型数，而有小数点的值被认为是浮点数。
@@ -18,17 +17,21 @@
 **GLSL ES 关键字**
 
 ---
+
 attribute bool break bvec2 bvec3 bvec4 const continue discard do else false float for highp if in inout Int invariant ivec2
 ivec3 ivec4 lowp mat2 mat3 mat4 medium out precision return sampler2D samplerCube struct true uniform varying vec2 vec3 vec4
 void while
+
 ---
 
 **GLSL ES 保留字**
 
 ---
+
 asm cast class default double dvec2 dvec3 dvec4 enum extern external fixed flat fvec2 fvec3 fvec4 goto half hvec2 hvec3 hvec4
 inline input interface long namespace noinline output packed public sampler1D sampler1DShadow sampler2DRect sampler2DRectShadow
 sampler2DShadow sampler3D sampler3DRect short sizeof static superp switch template this typedef union unsigned using volatile
+
 ---
 
 **基本类型**
@@ -41,14 +44,12 @@ GLSL的基本类型
 | int   | 整型数。该类型的变量表示一个整数              |
 | bool  | 布尔值。该类型的变量表示一个布尔值（true或false） |
 
-
 ## 矢量和矩阵
 
 | 类别 | GLSL ES 数据类型                                               | 描述                                                        |
 |----|------------------------------------------------------------|-----------------------------------------------------------|
 | 矢量 | vec2，vec3,vec4<br/>ivec2,ivec3,ivec4<br/>bvec2,bvec3,bvec4 | 具有2，3，4个浮点数元素的矢量<br/>具有2，3，4个整型元素的矢量<br/>具有2，3，4个布尔值元素的矢量 |
 | 矩阵 | mat2,mat3,mat4                                             | 2x2,3x3,4x4的符点数元素的矩阵（分别具有4，9，16个元素）                       |
-
 
 **专门创建指定类型的变量的函数被称为`构造函数`,构造函数的名称和其创建的变量的类型名称总是一致的**
 
@@ -67,12 +68,13 @@ vec4 v4 = vec4(1.0) // 将v4设为（1.0, 1.0, 1.0, 1.0)
 ```GLSE ES
 mat4 m4 = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0);
 ```
+
 $$
  \begin{bmatrix}
-  1.0 & 5.0 & 9.0 & 13.0
-  2.0 & 6.0 & 10.0 & 14.0
-  3.0 & 7.0 & 11.0 & 15.0
-  4.0 & 8.0 & 12.0 & 16.0
+  1.0 & 5.0 & 9.0 & 13.0\\
+  2.0 & 6.0 & 10.0 & 14.0\\
+  3.0 & 7.0 & 11.0 & 15.0\\
+  4.0 & 8.0 & 12.0 & 16.0\\
  \end{bmatrix}
 $$
 
@@ -103,6 +105,7 @@ f = v3.r // 1.0
 f = v3.s // 1.p
 
 ```
+
 x、r 和s 虽然名称不同，但访问的却是第一个分量
 
 **混合**
@@ -137,6 +140,7 @@ v3b.z = v3a.z + f
 ### 矢量运算
 
 矢量运算操作发生在矢量的每个分量上
+
 ```cpp
 
 v3c = v3a + v3b
@@ -173,7 +177,6 @@ m3b[2].z = m3a[2].z * f
 
 矩阵右乘矢量的结果是矢量。其中每个分量都是原矢量中的对应分量，乘上`矩阵对应行`的每个元素的积的和。
 
-
 ### 矩阵左乘矢量
 
 矩阵左乘矢量的结果是矢量。其中每个分量都是原矢量中的对应分量，乘上`矩阵对应列`的每个元素的积的和。
@@ -183,6 +186,7 @@ m3b[2].z = m3a[2].z * f
 矩阵相乘的条件：
 
 设有两个矩阵：
+
 - 矩阵A：维度为 m x n
 - 矩阵B：维度为 n x p
 
@@ -216,7 +220,6 @@ vec4 vec4Array[2] // 声明含有2个vec4对象的数组
 vec4Array[0] = vec4(4.0, 1.0, 3.0, 4.0)
 vec4Array[1] = vec4(3.0, 2.0, 4.0, 5.0)
 
-
 ### 取样器（纹理）
 
 GLSL ES支持的一种内置类型为**取样器**，必须通过该类型变量访问纹理。有两种基本的取样器类型：`sampler2D`和`samplerCube`。取样器变量只能是uniform变量，或者需要访问纹理的函数，
@@ -246,6 +249,7 @@ GLSL ES支持的一种内置类型为**取样器**，必须通过该类型变量
 ### 参数限定词
 
 可以为函数参数指定限定字，以控制参数的行为。可以将函数参数定义成：
+
 - 传递给函数的
 - 将要在函数中被赋值的
 - 既是传递给函数的，也是将要在函数中被赋值的
@@ -285,7 +289,7 @@ luma2(color, brightness);
 | 通用函数   | abs（取绝对值），min（最小值），max（最大值），mod（取余数），sign（取正负号），floor（向下取整），ceil（向上取整），<br/>clamp（限定范围），mix（线性内插），step（步进函数），smoothstep（艾米内插步进），fract（获取小数部分）                                         |
 | 几何函数   | length（矢量长度），distance（两点间距离），dot（内积），cross（外积），normalize（归一化），reflect（矢量反射），faceforward（是向量“超前”）                                                                                      |
 | 矩阵函数   | matrixCmpMult（逐元素乘法）                                                                                                                                                                  |
-| 矢量函数   | lessThan（逐元素小于），lessThanEqual（逐元素小于等于），greaterThan（逐元素大于），greaterThanEqual（逐元素大于等于）<br/>，equal（逐元素相等），notEqual（逐元素不等），any（任一元素为true则为true），all（所有元素为true则为true），not（逐元素取补）            | 
+| 矢量函数   | lessThan（逐元素小于），lessThanEqual（逐元素小于等于），greaterThan（逐元素大于），greaterThanEqual（逐元素大于等于）<br/>，equal（逐元素相等），notEqual（逐元素不等），any（任一元素为true则为true），all（所有元素为true则为true），not（逐元素取补）            |
 | 纹理查询函数 | texture2D（在二维纹理中获取纹素），textureCube（在立方体纹理中获取纹素），texture2DProj（texture2D的投影版本），<br/>texture2DLod（texture2D的金字塔版本），textureCubeLod（textureCube的金字塔版本），texture2DProjLod（texture2DLod的投影版本） |
 
 ### 全局变量和局部变量
@@ -296,7 +300,7 @@ GLSL ES 中，如果变量声明在函数外面，那么它就是全局变量，
 
 在GLSL ES中，经常使用 `attribute`、 `varying`和`uniform`限定字来修饰变量。
 
-- attribute：只能出现在顶点着色器中，只能声明为全局变量，被用来表示逐顶点的信息。 
+- attribute：只能出现在顶点着色器中，只能声明为全局变量，被用来表示逐顶点的信息。
 
   attribute变量的类型只能是float、vec2、vec3、vec4、mat2、mat3、mat4。
 
@@ -323,6 +327,7 @@ GLSL ES 中，如果变量声明在函数外面，那么它就是全局变量，
 
 GLSL ES新引入了精度限定字，目的是帮助着色器程序提供运行效率，消减内存开支。精度限定字用来表示每种数据具有的精度（比特数）。高精度的程序需要更大的开销（包括更大的内存和更久的计算时间），而低精度的程序需要的开销则小得多。使用精度限定字，
 就能精细地控制程序在效果和性能间的平衡。然而精度限定字是可选的，如果不确定，可以使用这个适中的默认值：
+
 ```glsl
 #ifdef GL_ES
 precision mediump float;
@@ -378,15 +383,19 @@ IF 如果条件表达式为真，执行这里
 ```
 
 可以使用`#define`指令进行宏定义。 和C语言中的宏不同，GLSL ES中的宏没有宏参数：
+
 ```glsl
 #define 宏名 宏内容
 ```
 
 可以使用`#undef`指令解除宏定义
+
 ```glsl
 #undef 宏名
 ```
+
 可以使用`#else`指令配合`#ifdef`
+
 ```glsl
 #define NUM 100
 #if NUN == 100
@@ -397,6 +406,7 @@ IF 如果条件表达式为真，执行这里
 ```
 
 例
+
 ```glsl
 #ifdef GL_ES
 #ifdef GL_FRAGMENT_PERCISION_HIGH
@@ -412,6 +422,7 @@ precision mediump float; // 不支持高精度，限定浮点型为中精度
 ```glsl
 #version number
 ```
+
 可以接受的版本包括100（GLSL ES 1.00）和101（GLSL ES 1.01）。如果不使用`#version`指令，着色器将默认GLSL ES的版本为1.00。指定1.01版本如下：
 
 ```glsl
