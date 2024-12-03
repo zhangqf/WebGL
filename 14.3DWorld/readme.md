@@ -168,6 +168,390 @@ function initVertexBuffers(gl) {
 
 要想要图形旋转，就需要旋转矩阵乘以旋转前的顶点坐标。
 
-<旋转后的顶点坐标> = <旋转矩阵> * <原始顶点坐标>
+<旋转后的顶点坐标> = <旋转矩阵> x <原始顶点坐标>
 
-<从视点看上去 的旋转顶点坐标> = <视图矩阵> * <旋转矩阵> * <原始顶点坐标>
+<从视点看上去 的旋转顶点坐标> = <视图矩阵> x <旋转矩阵> x <原始顶点坐标>
+
+除了旋转矩阵外，还可以使用平移、缩放等基本变换矩阵或者他们的组合，这时矩阵被称为**模型矩阵**
+可以写成：
+
+<视图矩阵> x <模型矩阵> x <原始顶点坐标>
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ViewMatrix;\n' +
+    'uniform mat4 u_ModelMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ViewMatrix * u_ModelMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+
+    if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Faild to initialize shaders.')
+    }
+
+    draw(gl,n)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+        // 最后边绿色三角形
+        0.0, 0.5, -0.4, 0.4, 1.0, 0.4,
+        -0.5, -0.5, -0.4, 0.4, 1.0, 0.4,
+        0.5, -0.5, -0.4, 1.0, 0.4, 0.4,
+
+        // 中间的黄色三角形
+        0.5, 0.4, -0.2, 1.0, 0.4, 0.4,
+        -0.5, 0.4, -0.2, 1.0, 1.0, 0.4,
+        0.0, -0.6, -0.2, 1.0, 1.0, 0.4,
+
+        // 最前边的蓝色山角形
+        0.0, 0.5, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -0.5, 0.0, 0.4, 0.4, 1.0,
+        0.5, -0.5, 0.0, 1.0, 0.4, 0.4,
+    ])
+    const n = 9
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    // 创建缓冲区
+    const vertexColorBuffer = gl.createBuffer()
+    // 绑定缓冲区
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+    // 向缓冲区写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    // 获取attribute变量
+    // const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    // 将缓冲区数据分配给变量
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    // 开启变量 方便着色器访问缓冲区内的数据
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size*3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+
+function draw(gl,n) {
+    const u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix')
+    const u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix')
+
+    const viewMatrix = new Matrix4()
+    viewMatrix.setLookAt(0.20,0.25,0.25,0,0,0,0,1,0)
+
+    const modelMatrix = new Matrix4()
+    modelMatrix.setRotate(-50, 0, 0, 1)
+
+
+
+    gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements)
+
+    gl.uniformMatrix4fv(u_ViewMatrix, false, viewMatrix.elements)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+```
+
+![效果图](../images/lookAtRotatedTriangle.png)
+
+### 模型视图矩阵
+
+上面的例子中，程序对每个顶点都要计算视图矩阵 X 模型矩阵。 如果顶点数量很多，这一步操作就会造成不必要的开销。这是因为，无论对哪个顶点而言，两个矩阵相乘的结果都是一样的。
+所有可以在javascript中事先吧这两个矩阵相乘的结果计算出来，在传给顶点着色器。这两个矩阵相乘得到的结果被称为**模型视图矩阵**
+
+<模型视图矩阵> = <视图矩阵> x <模型矩阵>
+
+即
+
+<模型视图矩阵> x <顶点坐标>
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ModelViewMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ModelViewMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+
+    if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Faild to initialize shaders.')
+    }
+
+    draw(gl,n)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+        // 最后边绿色三角形
+        0.0, 0.5, -0.4, 0.4, 1.0, 0.4,
+        -0.5, -0.5, -0.4, 0.4, 1.0, 0.4,
+        0.5, -0.5, -0.4, 1.0, 0.4, 0.4,
+
+        // 中间的黄色三角形
+        0.5, 0.4, -0.2, 1.0, 0.4, 0.4,
+        -0.5, 0.4, -0.2, 1.0, 1.0, 0.4,
+        0.0, -0.6, -0.2, 1.0, 1.0, 0.4,
+
+        // 最前边的蓝色山角形
+        0.0, 0.5, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -0.5, 0.0, 0.4, 0.4, 1.0,
+        0.5, -0.5, 0.0, 1.0, 0.4, 0.4,
+    ])
+    const n = 9
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    // 创建缓冲区
+    const vertexColorBuffer = gl.createBuffer()
+    // 绑定缓冲区
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+    // 向缓冲区写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    // 获取attribute变量
+    // const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    // 将缓冲区数据分配给变量
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    // 开启变量 方便着色器访问缓冲区内的数据
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size*3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+
+function draw(gl,n) {
+    const u_ModelViewMatrix = gl.getUniformLocation(gl.program, 'u_ModelViewMatrix')
+
+    const viewMatrix = new Matrix4()
+    viewMatrix.setLookAt(0.20,0.25,0.25,0,0,0,0,1,0)
+
+    const modelMatrix = new Matrix4()
+    modelMatrix.setRotate(-90, 0, 0, 1)
+
+    const modeViewMatrix = viewMatrix.multiply(modelMatrix)
+
+
+    gl.uniformMatrix4fv(u_ModelViewMatrix, false, modeViewMatrix.elements)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+```
+
+![效果图](../images/lookatRotatedTriangleMultiply.png)
+
+### 利用键盘改变点位
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ModelViewMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ModelViewMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+
+    if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Faild to initialize shaders.')
+    }
+    const u_ModelViewMatrix = gl.getUniformLocation(gl.program, 'u_ModelViewMatrix')
+
+    const viewMatrix = new Matrix4()
+    document.onkeydown = function (ev) {
+        onkeydown(ev, gl, n, u_ModelViewMatrix, viewMatrix)
+    }
+
+    draw(gl,n,u_ModelViewMatrix, viewMatrix)
+
+
+}
+let g_eyeX = 0.20, g_eyeY = 0.25, g_eyeZ = 0.25
+
+function onkeydown(ev, gl, n, u_ModelViewMatrix, viewMatrix) {
+    console.log(ev)
+    if(ev.keyCode == 39) {
+        g_eyeX += 0.01
+    } else if(ev.keyCode == 37) {
+        g_eyeX -= 0.01
+    } else {return}
+    draw(gl, n, u_ModelViewMatrix, viewMatrix)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+        // 最后边绿色三角形
+        0.0, 0.5, -0.4, 0.4, 1.0, 0.4,
+        -0.5, -0.5, -0.4, 0.4, 1.0, 0.4,
+        0.5, -0.5, -0.4, 1.0, 0.4, 0.4,
+
+        // 中间的黄色三角形
+        0.5, 0.4, -0.2, 1.0, 0.4, 0.4,
+        -0.5, 0.4, -0.2, 1.0, 1.0, 0.4,
+        0.0, -0.6, -0.2, 1.0, 1.0, 0.4,
+
+        // 最前边的蓝色山角形
+        0.0, 0.5, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -0.5, 0.0, 0.4, 0.4, 1.0,
+        0.5, -0.5, 0.0, 1.0, 0.4, 0.4,
+    ])
+    const n = 9
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    // 创建缓冲区
+    const vertexColorBuffer = gl.createBuffer()
+    // 绑定缓冲区
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+    // 向缓冲区写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    // 获取attribute变量
+    // const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    // 将缓冲区数据分配给变量
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    // 开启变量 方便着色器访问缓冲区内的数据
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size*3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+
+function draw(gl,n, u_ModelViewMatrix, viewMatrix) {
+
+    viewMatrix.setLookAt(g_eyeX,g_eyeY,g_eyeZ,0,0,0,0,1,0)
+
+    const modelMatrix = new Matrix4()
+    modelMatrix.setRotate(-90, 0, 0, 1)
+
+    const modeViewMatrix = viewMatrix.multiply(modelMatrix)
+
+
+    gl.uniformMatrix4fv(u_ModelViewMatrix, false, modeViewMatrix.elements)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+```
+
+![效果图](../images/lookAtRotatedTrianaleOnKeyDown.png)
+
+**当视点在极限位置时，三角形就会缺少一个部分**
+
+
+### 独缺一角
+
+三角形缺了一角的原因时，没有指定**可视范围**，即实际观察得到的区域边界。
+
+
+## 可视范围（正射类型）
+
+虽然可以将三维物体放在三维空间中的任何地方，但是只有它在可视范围内时，WebGL才会绘制它。事实上，不绘制可视范围外的对象，是基本地降低程序开销的手段。
+绘制可视范围外的对象没有意义，即使把它们绘制出来也不会在屏幕上显示。从某种程序上来说，这样做也模拟了人类观察物体的方式。
+**WebGL，只绘制可视范围内的三维对象**
+
+除了水平和垂直范围内的限制，WebGL还限制观察者的可是深度，即“能够看多远”，所有这些限制，包括水平视角、垂直视角和可视深度，定义了**可视空间**。由于没有显示指定可视空间，默认的可是深度又远不够，所以三角形的一个角看上去就消失了。
+
+### 可是空间
+
+- 长方体可视空间，也称盒状空间，由**正射投影**产生
+- 四棱锥/金字塔可视空间，由**透视投影**产生
+
+在透视投影下，产生的三维场景看上去更有深度感，更加自然，我们平时观察真实世界用的也是透视投影。大多数情况下，比如三维射击类游戏中，我们都应当采用透视投影。相比之下，正射投影的好处是用户可以方便地比较场景中物体（比如两个原子模型）的大小。
