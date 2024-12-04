@@ -293,7 +293,11 @@ function draw(gl,n) {
 上面的例子中，程序对每个顶点都要计算视图矩阵 X 模型矩阵。 如果顶点数量很多，这一步操作就会造成不必要的开销。这是因为，无论对哪个顶点而言，两个矩阵相乘的结果都是一样的。
 所有可以在javascript中事先吧这两个矩阵相乘的结果计算出来，在传给顶点着色器。这两个矩阵相乘得到的结果被称为**模型视图矩阵**
 
+$$
+
 <模型视图矩阵> = <视图矩阵> x <模型矩阵>
+
+$$
 
 即
 
@@ -549,7 +553,7 @@ function draw(gl,n, u_ModelViewMatrix, viewMatrix) {
 
 除了水平和垂直范围内的限制，WebGL还限制观察者的可是深度，即“能够看多远”，所有这些限制，包括水平视角、垂直视角和可视深度，定义了**可视空间**。由于没有显示指定可视空间，默认的可是深度又远不够，所以三角形的一个角看上去就消失了。
 
-### 可是空间
+### 可视空间
 
 - 长方体可视空间，也称盒状空间，由**正射投影(orthographic projection)**产生
 - 四棱锥/金字塔可视空间，由**透视投影(perspective projection)**产生
@@ -578,6 +582,300 @@ function draw(gl,n, u_ModelViewMatrix, viewMatrix) {
 | bottom | 指定近裁剪面的下边界          |
 | near   | 指定近裁剪面的位置，即可视空间的近边界 |
 | far    | 指定远裁剪面的位置，即可视空间的远边界 |
+
+| 返回值 | 描述 |
+|-----|----|
+| 无   |    |
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ProjMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ProjMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const nf = document.getElementById('nearFar')
+
+    const gl = canvas.getContext('webgl')
+
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+
+    if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Faild to initialize shaders.')
+    }
+    const u_ProjMatrix = gl.getUniformLocation(gl.program, 'u_ProjMatrix')
+
+    const projMatrix = new Matrix4()
+    document.onkeydown = function (ev) {
+        onkeydown(ev, gl, n, u_ProjMatrix, projMatrix, nf)
+    }
+
+    draw(gl,n,u_ProjMatrix, projMatrix,nf)
+
+
+}
+
+let g_near = 0.0, g_far=0.5;
+function onkeydown(ev, gl, n, u_ProjMatrix, projMatrix,nf) {
+    switch (ev.keyCode) {
+        case 39: g_near += 0.01; break;
+        case 37: g_near -= 0.01; break;
+        case 38: g_far += 0.01; break;
+        case 40: g_far -= 0.01; break;
+        default: return;
+    }
+    draw(gl, n, u_ProjMatrix, projMatrix, nf)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+        // 最后边绿色三角形
+        0.0, 0.5, -0.4, 0.4, 1.0, 0.4,
+        -0.5, -0.5, -0.4, 0.4, 1.0, 0.4,
+        0.5, -0.5, -0.4, 1.0, 0.4, 0.4,
+
+        // 中间的黄色三角形
+        0.5, 0.4, -0.2, 1.0, 0.4, 0.4,
+        -0.5, 0.4, -0.2, 1.0, 1.0, 0.4,
+        0.0, -0.6, -0.2, 1.0, 1.0, 0.4,
+
+        // 最前边的蓝色山角形
+        0.0, 0.5, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -0.5, 0.0, 0.4, 0.4, 1.0,
+        0.5, -0.5, 0.0, 1.0, 0.4, 0.4,
+    ])
+    const n = 9
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    // 创建缓冲区
+    const vertexColorBuffer = gl.createBuffer()
+    // 绑定缓冲区
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+    // 向缓冲区写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    // 获取attribute变量
+    // const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    // 将缓冲区数据分配给变量
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    // 开启变量 方便着色器访问缓冲区内的数据
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size*3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+
+function draw(gl,n, u_ProjMatrix, projMatrix,nf) {
+
+    projMatrix.setOrtho(-1,1,-1,1, g_near ,g_far)
+
+    gl.uniformMatrix4fv(u_ProjMatrix, false, projMatrix.elements)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+```
+
+![效果图](../images/orthographicprojectionmatrix.jpg)
+
+### 补上却掉的角
+
+被裁剪的三角形，是由于远裁剪面过于接近视点导致的，只需要将远裁剪面移动到距离视点更远的地方。
+
+关于可视空间的正射投影矩阵，以及关于视点与视线的视图矩阵。在顶点着色器中，需要用视图矩阵乘以顶点坐标，得到顶点在视图坐标系下的坐标，再乘以正色投影矩阵并赋值给`gl_Position`
+
+$$
+<正射投影矩阵> X <视图矩阵> X <顶点坐标>
+$$
+
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ModelViewMatrix;\n' +
+    'uniform mat4 u_ProjMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ProjMatrix * u_ModelViewMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+
+    if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+    }
+
+    const n = initVertexBuffers(gl);
+
+    if(n < 0) {
+        console.error('Faild to initialize shaders.')
+    }
+    const u_ModelViewMatrix = gl.getUniformLocation(gl.program, 'u_ModelViewMatrix')
+    const u_ProjMatrix = gl.getUniformLocation(gl.program, 'u_ProjMatrix')
+    const viewMatrix = new Matrix4()
+
+    const proMatrix = new Matrix4()
+
+    proMatrix.setOrtho(-1.0, 1.0, -1.0, 1.0, 0.0, 2.0)
+
+    gl.uniformMatrix4fv(u_ProjMatrix, false, proMatrix.elements)
+
+    document.onkeydown = function (ev) {
+        onkeydown(ev, gl, n, u_ModelViewMatrix, viewMatrix)
+    }
+
+    draw(gl,n,u_ModelViewMatrix, viewMatrix)
+
+
+}
+let g_eyeX = 0.20, g_eyeY = 0.25, g_eyeZ = 0.25
+
+function onkeydown(ev, gl, n, u_ModelViewMatrix, viewMatrix) {
+    console.log(ev)
+    if(ev.keyCode == 39) {
+        g_eyeX += 0.01
+    } else if(ev.keyCode == 37) {
+        g_eyeX -= 0.01
+    } else {return}
+    draw(gl, n, u_ModelViewMatrix, viewMatrix)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+        // 最后边绿色三角形
+        0.0, 0.5, -0.4, 0.4, 1.0, 0.4,
+        -0.5, -0.5, -0.4, 0.4, 1.0, 0.4,
+        0.5, -0.5, -0.4, 1.0, 0.4, 0.4,
+
+        // 中间的黄色三角形
+        0.5, 0.4, -0.2, 1.0, 0.4, 0.4,
+        -0.5, 0.4, -0.2, 1.0, 1.0, 0.4,
+        0.0, -0.6, -0.2, 1.0, 1.0, 0.4,
+
+        // 最前边的蓝色山角形
+        0.0, 0.5, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -0.5, 0.0, 0.4, 0.4, 1.0,
+        0.5, -0.5, 0.0, 1.0, 0.4, 0.4,
+    ])
+    const n = 9
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    // 创建缓冲区
+    const vertexColorBuffer = gl.createBuffer()
+    // 绑定缓冲区
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+    // 向缓冲区写入数据
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    // 获取attribute变量
+    // const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    // 将缓冲区数据分配给变量
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    // 开启变量 方便着色器访问缓冲区内的数据
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size*3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+
+function draw(gl,n, u_ModelViewMatrix, viewMatrix) {
+
+    viewMatrix.setLookAt(g_eyeX,g_eyeY,g_eyeZ,0,0,0,0,1,0)
+
+    const modelMatrix = new Matrix4()
+    modelMatrix.setRotate(-90, 0, 0, 1)
+
+    const modeViewMatrix = viewMatrix.multiply(modelMatrix)
+
+
+    gl.uniformMatrix4fv(u_ModelViewMatrix, false, modeViewMatrix.elements)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+```
+
+![效果图](../images/lookAtTrianglesWithkeys_viewVolume.png)
+
+## 可视空间（透视投影）
+
+**近大远小**
+
+在正射投影的可视空间中，不管三角形与视点的距离是远是近，它有多大，那么画出来就有多大。为了打破这条限制，我们可以使用透视投影可视空间，它将使场景具有深度感。
+
+使用透视投影矩阵后，WebGL就能够自动将距离远的物体缩小显示。从而产生深度感。
+
+### 定义透视投影可视空间
+
+透视投影可视空间。就像盒状可视空间那样，透视投影可视空间也有视点、视线、近裁剪面和远裁剪面，这样可视空间内的物体才会被显示，可视空间外的物体则不会显示。那些跨越可视空间边界的物体则只会显示其在可视空间内的部分。
+
+![原理图](../images/PerspectiveView.png)
+
+不论是透视投影可视空间还是盒状可视空间，我们都用投影矩阵来表示它，但是定义矩阵的参数不同。Matrix4对象的`setPerspective()`方法可以用来定义透视投影可视空间
+
+**Matrix4.setPerspective(fov, aspect, near, far)**
+
+| 参数        | 描述                                           |
+|-----------|----------------------------------------------|
+| fov       | 指定垂直视角，即可视空间顶面和底面的角，必须大于0                    |
+| aspect    | 指定近裁剪面的宽高比（宽度/高度）                            |
+| near, far | 指定近裁剪面和远裁剪面的位置，即可视空间的近边界和远边界（near和far都必须大于0） |
+
 
 | 返回值 | 描述 |
 |-----|----|
