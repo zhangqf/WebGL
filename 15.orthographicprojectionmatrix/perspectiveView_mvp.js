@@ -5,18 +5,18 @@ const VSHADER_SOURCE=
     'uniform mat4 u_ProjMatrix;\n' +
     'uniform mat4 u_ModelMatrix;\n' +
     'varying vec4 v_Color;\n' +
-    'void main(){' +
-    'gl.Position = u_ProjMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ProjMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;\n' +
     'v_Color = a_Color;\n' +
-    '}'
+    '}\n';
 const FSHADER_SOURCE =
-    '#ifdef GL_ES' +
+    '#ifdef GL_ES\n' +
     'precision mediump float;\n' +
     '#endif\n' +
     'varying vec4 v_Color;\n' +
-    'void main(){' +
-    'gl.FragColor = v_Color;\n' +
-    '}\n'
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n';
 
 function main() {
     const canvas = document.querySelector('canvas')
@@ -26,7 +26,7 @@ function main() {
         return
     }
 
-    if(initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+    if(!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
         console.error('Failed to initialize shaders.')
         return;
     }
@@ -66,9 +66,9 @@ function main() {
 
 function initVertexBuffers(gl) {
     const verticesColors = new Float32Array([
-        0.0,1.0,-4.0,0.4,1.0,0.4,
-        -0.5,-1.0,-4.0,0.4,1.0,0.4,
-        0.5,-1.0,-4.0,1.0,0.4,0.4,
+        0.0, 1.0, -4.0, 0.4, 1.0, 0.4,
+        -0.5, -1.0, -4.0, 0.4, 1.0, 0.4,
+        0.5, -1.0, -4.0, 1.0, 0.4, 0.4,
 
         0.0, 1.0, -2.0, 1.0, 1.0, 0.4,
         -0.5, -1.0, -2.0, 1.0, 1.0, 0.4,
@@ -80,9 +80,11 @@ function initVertexBuffers(gl) {
     ])
     const n = 9
     const size = verticesColors.BYTES_PER_ELEMENT
-    const verticesBuffer = gl.createBuffer()
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer)
+    const vertexColorBuffer = gl.createBuffer()
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+
     gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
 
     const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
