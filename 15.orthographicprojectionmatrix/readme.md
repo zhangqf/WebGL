@@ -880,3 +880,143 @@ function draw(gl,n, u_ModelViewMatrix, viewMatrix) {
 | 返回值 | 描述 |
 |-----|----|
 | 无   |    |
+
+
+```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_ViewMatrix;\n' +
+    'uniform mat4 u_ProjMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_ProjMatrix * u_ViewMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n';
+const FSHADER_SOURCE=
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n';
+
+function main() {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+    if(!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+        return;
+    }
+
+    const n = initVertexBuffers(gl)
+
+    if(n < 0){
+        console.error('Failed to set the positions of the vertices.')
+    }
+
+    const u_ViewMatrix = gl.getUniformLocation(gl.program,'u_ViewMatrix')
+    const u_ProjMatrix = gl.getUniformLocation(gl.program, 'u_ProjMatrix')
+
+    // 视图矩阵
+    const viewMatrix = new Matrix4()
+    // 投影矩阵
+    const projMatrix = new Matrix4()
+
+    viewMatrix.setLookAt(0,0,5,0,0,-100,0,1,0)
+    projMatrix.setPerspective(30, canvas.width / canvas.height, 1, 100)
+
+    // 将视图矩阵 投影矩阵 传递给 变量
+    gl.uniformMatrix4fv(u_ProjMatrix, false, projMatrix.elements)
+    gl.uniformMatrix4fv(u_ViewMatrix, false, viewMatrix.elements)
+
+    gl.clearColor(0.0, 0.0,0.0,1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+function initVertexBuffers(gl){
+    const verticesColors = new Float32Array([
+        // 右侧的三个三角形
+        0.75, 1.0, -4.0, 0.4, 1.0, 0.4,
+        0.25, -1.0, -4.0, 0.4, 1.0, 0.4,
+        1.25, -1.0, -4.0, 1.0, 0.4, 0.4,
+
+        0.75, 1.0, -2.0, 1.0, 1.0, 0.4,
+        0.25, -1.0, -2.0, 1.0, 1.0, 0.4,
+        1.25, -1.0, -2.0, 1.0, 0.4, 0.4,
+
+        0.75, 1.0, 0.0, 1.0, 1.0, 0.4,
+        0.25, -1.0, 0.0, 0.4, 0.4, 1.0,
+        1.25, -1.0, 0.0, 1.0, 0.4, 0.4,
+
+        // 左侧的3个三角形
+        -0.75, 1.0, -4.0, 0.4, 1.0, 0.4,
+        -1.25, -1.0, -4.0, 0.4, 1.0, 0.4,
+        -0.25, -1.0, -4.0, 1.0, 0.4, 0.4,
+
+        -0.75, 1.0, -2.0, 1.0, 1.0, 0.4,
+        -1.25, -1.0, -2.0, 1.0, 1.0, 0.4,
+        -0.25, -1.0, -2.0, 1.0, 0.4, 0.4,
+
+        -0.75, 1.0, 0.0, 0.4, 0.4, 1.0,
+        -1.25, -1.0, 0.0, 0.4, 0.4, 1.0,
+        -0.25, -1.0, 0.0, 1.0, 0.4, 0.4
+    ])
+    const n = 18
+
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    const vertexColorBuffer = gl.createBuffer()
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6 ,0)
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size *3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+}
+```
+![效果图](../images/lookattrianglesPerspectiveview.png)
+
+
+### 投影矩阵的作用
+
+透视投影矩阵对三角形进行了两次变换，
+
+- 根据三角形与视点的距离，按比例对三角形进行缩小变换
+- 对三角形进行平移变换，使其贴近视线
+
+可视空间的规范（对透视投影可视空间来说，就是近、远裁剪面，垂直视角，宽高比）可以用一系列基本变换（如缩放、平移）来定义。
+Matrix4对象的setPerspective()方法自动地根据上述可视空间的参数计算出对应的变换矩阵。
+
+透视投影矩阵实际上将金字塔状的可视空间变换为盒状的可视空间，这个盒状的可视空间又称为**规范立方体**。 正射投影矩阵不能产生深度感。
+正射投影矩阵的工作仅仅是将顶点从盒状的可视空间映射到规范立方体中。顶点着色器输出的顶点都必须在规范立方体中，这样才会显示在屏幕上。
+
+有了投影矩阵、模型矩阵和视图矩阵，我们就能过处理顶点需要经过的所有的几何变换（平移、旋转、缩放），最终达到 “具有深度感”的视觉效果。
+
+### 共冶一炉（模型矩阵、视图矩阵和投影矩阵）
+
+上一个例子中，用了一段枯燥的代码来定义所有顶点和颜色的数据。图中只有6个三角形，还需要手动管理这些数据，但是如果三角形的数量过多，
+那就相当繁杂。对于这个问题，确实还有更高效的方法。
+
+左右两组三角形的大小、位置、颜色都是对应的。我么可以将它们向x轴正方向平移0.75单位就可以得到右侧的三角形，向x轴负方向平移0.75
+单位就可以得到左侧的三角形。
+
+- 在z轴准备3个三角形的顶点数据
+- 将其沿x轴正方向（以原始位置为基准）平移0.75单位，绘制三角形
+- 将其沿x轴负方向（以原始位置为基准）平移0.75单位，绘制三角形
+
+

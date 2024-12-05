@@ -29,12 +29,14 @@ function main() {
 
     if(!initShaders(gl, VSHADER_SOURCE,FSHADER_SOURCE)) {
         console.error('Failed to initialize shaders.')
+        return;
     }
 
     const n = initVertexBuffers(gl);
 
     if(n < 0) {
-        console.error('Faild to initialize shaders.')
+        console.error('Failed to set the positions of the vertices.')
+        return;
     }
     const u_ModelViewMatrix = gl.getUniformLocation(gl.program, 'u_ModelViewMatrix')
     const u_ProjMatrix = gl.getUniformLocation(gl.program, 'u_ProjMatrix')
