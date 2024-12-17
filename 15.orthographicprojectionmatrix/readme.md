@@ -1145,6 +1145,190 @@ $$
 这个式子其实和顶点没有关系，没必要在处理每个顶点时都算一遍。 可以在 Javascript 中将这三个矩阵相乘得到单个矩阵的结果，传给顶点着色器。传入的这个矩阵被称为**模型视图投影矩阵**
 
 ```js
+const VSHADER_SOURCE =
+    'attribute vec4 a_Position;\n' +
+    'attribute vec4 a_Color;\n' +
+    'uniform mat4 u_MvpMatrix;\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_Position = u_MvpMatrix * a_Position;\n' +
+    'v_Color = a_Color;\n' +
+    '}\n'
+const FSHADER_SOURCE =
+    '#ifdef GL_ES\n' +
+    'precision mediump float;\n' +
+    '#endif\n' +
+    'varying vec4 v_Color;\n' +
+    'void main(){\n' +
+    'gl_FragColor = v_Color;\n' +
+    '}\n'
 
+function main(){
+    const canvas = document.querySelector('canvas')
+    const gl = canvas.getContext('webgl')
+    if(!gl) {
+        console.error('Unable to initialize WebGL.')
+        return
+    }
+    if(!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
+        console.error('Failed to initialize shaders.')
+        return;
+    }
+    const n = initVertexBuffers(gl)
+
+    const u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix')
+
+    const mvpMatrix = new Matrix4()
+    const viewMatrix = new Matrix4()
+    const projMatrix = new Matrix4()
+    const modelMatrix = new Matrix4()
+
+    modelMatrix.setTranslate(0.75, 0, 0)
+    viewMatrix.setLookAt(0,0,5,0,0,-100,0,1,0)
+    projMatrix.setPerspective(30, canvas.width / canvas.height, 1, 100)
+
+    // 计算模型视图投影矩阵
+    mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+
+    gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
+
+    gl.clearColor(0.0,0.0,0.0,1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+
+    modelMatrix.setTranslate(-0.75, 0,0)
+    mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+
+    gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
+
+    gl.drawArrays(gl.TRIANGLES, 0, n)
+}
+
+function initVertexBuffers(gl) {
+    const verticesColors = new Float32Array([
+
+        0.0, 1.0, -4.0, 0.4, 1.0, 0.4,
+        -0.5, -1.0, -4.0, 0.4, 1.0, 0.4,
+        0.5, -1.0, -4.0, 1.0, 0.4, 0.4,
+
+        0.0, 1.0, -2.0, 1.0, 1.0, 0.4,
+        -0.5, -1.0, -2.0, 1.0, 1.0, 0.4,
+        0.5, -1.0, -2.0, 1.0, 0.4, 0.4,
+
+        0.0, 1.0, 0.0, 0.4, 0.4, 1.0,
+        -0.5, -1.0, 0.0, 0.4, 0.4, 1.0,
+        0.5, -1.0, 0.0, 1.0, 0.4, 0.4
+    ])
+
+    const n = 9
+
+    const size = verticesColors.BYTES_PER_ELEMENT
+
+    const vertexColorBuffer = gl.createBuffer()
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer)
+
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW)
+
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, size * 6, 0)
+    gl.enableVertexAttribArray(a_Position)
+
+    const a_Color = gl.getAttribLocation(gl.program, 'a_Color')
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, size * 6, size *3)
+    gl.enableVertexAttribArray(a_Color)
+
+    return n
+
+}
 
 ```
+
+![效果图](../images/perspectiveView_mvp.png)
+
+## 正确处理对象的前后关系
+
+**WebGL按照顶点在缓冲区中的顺序（第1个是最远的绿色三角形，第2个是黄色的三角形，第3个是最近的蓝色三角形）来进行绘制的。后绘制的图形将覆盖已经绘制好的图形，这样就恰好产生了近处的三角形挡住远处的三角形的效果。**
+
+现在可以将上个例子中的第一个三角形的顶点数据和第三个三角形的顶点数据进行交换。结果如下图
+
+![效果图](../images/hiddesurface.png)
+
+WebGL在默认情况下会按照缓冲区中的顺序绘制图形，而且后绘制的图形覆盖先绘制的图形，因为这样做很高效。如果场景中的对象不发生运动，观察者的状态也是唯一的，那么这种做法没有问题。但是如果，希望不断移动视点，从不同的角度看物体，那么不可能事先决定对象出现的顺序
+
+### 隐藏面消除
+
+为了解决这个问题，WebGL提供了**隐藏面消除（hidden surface removal）**功能。这个功能会帮助我们消除那些被遮挡的表面。可以放心第绘制场景不必顾及各物体在缓冲区中的顺序，因为那些远处的物体会自动被近处的物体挡住，不会被绘制出来。
+
+**开启隐藏面消除功能，需要一下两步：**
+
+- 开启隐藏面消除功能： gl.enable(gl.DEPTH_TEST)
+- 在绘制之前，清除深度缓冲区： gl.clear(gl.DEPTH_BUFFER_BIT)
+
+
+**gl.enable(cap)** 函数实际上可以开启WebGL中的多种功能
+
+| 参数                     | 描述                                             |
+|------------------------|------------------------------------------------|
+| cap                    | 指定需要开启的功能，有可能是以下几个                             |
+| gl.DEPTH_TEST          | 隐藏面消除(深度检测，之所以这么命名是因为该机制是通过检测物体的深度来决定是否将其画出来的) |
+| gl.BLEND               | 混合                                             |
+| gl.POLYGON_OFFSET_FILL | 多边形位移                                          |
+
+| 返回值 | 描述 |
+|-----|----|
+| 无   |    |
+
+| 错误           | 描述      |
+|--------------|---------|
+| INVALID_ENUM | cap的值无效 |
+
+`gl.disable(cap)`函数用来关闭，cap与`gl.enable()`中的相同
+
+
+**gl.clear()**方法清除**深度缓冲区（depth buffer）** 深度缓冲区是一个中间对象，其作用就是帮助WebGL进行隐藏面消除。WebGL在颜色缓冲区中绘制几何图形，绘制完成后将颜色缓冲区显示到`<canvas>`上。如果要将隐藏面消除，那就必须知道每个几何图形的深度信息，
+而深度缓冲区就是用来存储深度信息的。由于深度放心通常是Z轴方向，所以有时候我们也称它为Z缓冲区。
+
+![原理图](../images/glClear.png)
+
+在绘制任意一帧之前，都必须清除深度缓冲区，以消除绘制上一帧时在其中留下的痕迹。如果不这样做，就会出现错误的结果。调用`gl.clear()`函数，并传入参数`gl.DEPTH_BUFFER_BIT`清除深度缓冲区：`gl.clear(gl.DEPTH_BUFFER_BIT)`
+
+```js
+...
+gl.clearColor(0.0,0.0,0.0,1)
+
+gl.enable(gl.DEPTH_TEST) // [!code ++]
+
+gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) // [!code ++]
+gl.clear(gl.COLOR_BUFFER_BIT) // [!code --]
+...
+```
+
+![效果图](../images/perspectiveView_mvp.png)
+
+可以看见成功地消除了隐藏面，位于近处的三角形挡住了远处的三角形。同时也证明了不管视点位于何处，隐藏面都能够被消除。在任何三维场景中，都应该开启隐藏面消除，并在适当的时刻情况深度缓冲区（通常是在绘制每一帧之前）。
+
+注意：隐藏面消除的前提是正确设置可是空间，否则就可能产生错误的结果。不管是盒状的正射投影空间，还是金字塔状的透视投影空间，必须使用一个。
+
+
+### 深度冲突
+
+隐藏面消除是WebGL的一项复杂而又强大的特性，在绝大多数情况下，它都能很好地完成任务。然后，当几何图形或物体的两个表面极为接近时，就会出现新的问题，使得表面看上去斑斑驳驳的。这种现象被称为**深度冲突**。
+
+之所以会产生深度冲突，是因为两个表面过于接近，深度缓冲区有限的精度已经不能区分哪个在前，哪个在后。严格地说，如果创建三维模型阶段就对顶点的深度值加以注意，是能够避免深度冲突的。但是，当场景中有多个运动着的物体时，实现这一点几乎是不可能的。
+
+WebGL提供一种被称为**多边形偏移（polygon offset）**的机制来解决这个问题。该机制将自动在Z值加上一个偏移量，偏移量的值由物体表面相对于观察者视线的角度来确定。启动该机制需要两行代码：
+
+- 启用多边形偏移：gl.enable(gl.POLYGON_OFFSET_FILL)
+- 在绘制之前指定用来计算偏移量的参数:gl.polygonOffset(1.0, 1.0)
+
+**gl.enable(gl.POLYGON_OFFSET_FILL)**启用多边形偏移
+
+**gl.polygonOffset(factor, units)**：指定加到每个顶点绘制后Z值上的偏移量，偏移量按照公式 
+
+$$
+m * factor + r * units
+$$
+
+计算，其中m表示顶点所在表面相对于观察者的视线的角度，而r表示硬件能够区分两个Z值之差的最小值

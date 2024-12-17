@@ -4,7 +4,7 @@ const VSHADER_SOURCE =
     'uniform mat4 u_MvpMatrix;\n' +
     'varying vec4 v_Color;\n' +
     'void main(){\n' +
-    'gl_Position = u_MvpMatrix * a_Position;\n' +
+    'gl_Position = a_Position;\n' +
     'v_Color = a_Color;\n' +
     '}\n'
 const FSHADER_SOURCE =
@@ -29,53 +29,52 @@ function main(){
     }
     const n = initVertexBuffers(gl)
 
-    const u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix')
+    // const u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix')
 
-    const mvpMatrix = new Matrix4()
-    const viewMatrix = new Matrix4()
-    const projMatrix = new Matrix4()
-    const modelMatrix = new Matrix4()
-
-    modelMatrix.setTranslate(0.75, 0, 0)
-    viewMatrix.setLookAt(0,0,5,0,0,-100,0,1,0)
-    projMatrix.setPerspective(30, canvas.width / canvas.height, 1, 100)
+    // const mvpMatrix = new Matrix4()
+    // const viewMatrix = new Matrix4()
+    // const projMatrix = new Matrix4()
+    // const modelMatrix = new Matrix4()
+    //
+    // modelMatrix.setTranslate(0.75, 0, 0)
+    // viewMatrix.setLookAt(0,0,5,0,0,-100,0,1,0)
+    // projMatrix.setPerspective(30, canvas.width / canvas.height, 1, 100)
 
     // 计算模型视图投影矩阵
-    mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+    // mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+    //
+    // gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
 
-    gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
-
-    gl.clearColor(0.0,0.0,0.0,1)
+    gl.clearColor(0.0,0.0,0.0,1.0)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
-    gl.drawArrays(gl.TRIANGLES, 0, n)
+    gl.enable(gl.POLYGON_OFFSET_FILL)
 
-    modelMatrix.setTranslate(-0.75, 0,0)
-    mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+    gl.drawArrays(gl.TRIANGLES, 0, n/2)
 
-    gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
+    gl.polygonOffset(1.0, 1.0)
+    //
+    // modelMatrix.setTranslate(-0.75, 0,0)
+    // mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix)
+    //
+    // gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements)
 
-    gl.drawArrays(gl.TRIANGLES, 0, n)
+    gl.drawArrays(gl.TRIANGLES, n/2, n/2)
 }
 
 function initVertexBuffers(gl) {
     const verticesColors = new Float32Array([
+        0.0, 2.5, -5.0, 0.0, 1.0, 0.0,
+        -2.5, -2.5, -5.0, 0.0, 1.0, 0.0,
+        2.5, -2.5, -5.0, 1.0, 0.0, 0.0,
 
-        0.0, 1.0, 0.0, 0.4, 0.4, 1.0,
-        -0.5, -1.0, 0.0, 0.4, 0.4, 1.0,
-        0.5, -1.0, 0.0, 1.0, 0.4, 0.4,
-
-        0.0, 1.0, -2.0, 1.0, 1.0, 0.4,
-        -0.5, -1.0, -2.0, 1.0, 1.0, 0.4,
-        0.5, -1.0, -2.0, 1.0, 0.4, 0.4,
-
-        0.0, 1.0, -4.0, 0.4, 1.0, 0.4,
-        -0.5, -1.0, -4.0, 0.4, 1.0, 0.4,
-        0.5, -1.0, -4.0, 1.0, 0.4, 0.4,
+        0.0, 3.0, -5.0, 1.0, 0.0, 0.0,
+        -3.0, -3.0, -5.0, 1.0, 1.0, 0.0,
+        3.0, -3.0, -5.0, 1.0, 1.0, 0.0
 
     ])
 
-    const n = 9
+    const n = 6
 
     const size = verticesColors.BYTES_PER_ELEMENT
 
