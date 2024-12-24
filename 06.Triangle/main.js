@@ -32,18 +32,6 @@ function main() {
         return;
     }
 
-    // // 获取attribut变量的存储位置
-    var a_Position = gl.getAttribLocation(gl.program, 'a_Position')
-    //
-    // var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor')
-    if(a_Position < 0) {
-        console.error('Failed to get the storage location of a_Position')
-        return;
-    }
-    //
-    // canvas.onmousedown = function (ev) {click(ev, gl, canvas, a_Position, u_FragColor)}
-
-
 
     // gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0)
 
@@ -54,7 +42,7 @@ function main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // 绘制三个点
-    gl.drawArrays(gl.LINE_LOOP, 0, n)
+    gl.drawArrays(gl.TRIANGLES, 0, n)
 
 
 }
